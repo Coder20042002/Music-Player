@@ -64,6 +64,8 @@
         const $ = document.querySelector.bind(document)
         const $$ = document.querySelectorAll.bind(document)
 
+        const PLAYER_STORAGE_KEY='ZONE PLAYER'
+
         const player=$('.player')
         const cd=$('.cd')
         const heading =$('header h2')
@@ -76,7 +78,7 @@
         const randomBtn=$('.btn-random')
         const repeatBtn=$('.btn-repeat')
         const removeActive=$('.playlist')
-        
+        const playlist=$('.playlist')
 
 
         const app = {
@@ -84,7 +86,7 @@
             isPlaying:false,
             isRandom:false,
             isRepeat:false,
-
+            config:JSON.parse(localStorage.getItem(PLAYER_STORAGE_KEY)) || {},
             songs: [
                 {
                     name: 'Vệ Tinh',
@@ -111,11 +113,16 @@
                     image: "./asset/img/maxresdefault.jpg "
                 },
             ],
+            setConfig:function(key,value) {
+                this.config[key]=value
+                localStorage.setItem(PLAYER_STORAGE_KEY,JSON.stringify(this.config))
+            },
+            
             render: function () {
                 
                 const htmls = this.songs.map((song,index) => {
                     return `
-                    <div class="song ${index === this.currentIndex  ? 'active' :''}">
+                    <div class="song ${index === this.currentIndex  ? 'active' :''}" data-index=${index}>
                         <div class="thumb" style="background-image: url('${song.image}')">
                         </div>
                         <div class="body">
@@ -205,13 +212,15 @@
                         app.prevSong()
                     }
                    
-                    audio.play()
+                    
                     removeActive.querySelector('.active').classList.remove('active')
                     app.songs.map((value,index)=> {
                         if(index==app.currentIndex) {
                             removeActive.querySelectorAll('.song')[index].classList.add('active')
                         }
                     })
+                    audio.play()
+                    app.scrollToActiveSong()
                     //app.render()
 
                 }
@@ -230,6 +239,7 @@
                     })
                     audio.play()                  
                     //app.render()
+                    app.scrollToActiveSong()
                     
                     
                 }
@@ -237,13 +247,17 @@
                 //Xu li random  on/off  random song
                 randomBtn.onclick=function(e) {
                     app.isRandom =!app.isRandom
+                    
                     randomBtn.classList.toggle('active',app.isRandom)
+                    app.setConfig('isRandom',isRandom)
                 }
 
                 //Xuli next song khi audio ended
                 audio.onended=function() {
                     if(app.isRepeat) {
                         audio.play()
+                        
+
                     } else {
                         nextBtn.click()
                     }
@@ -252,18 +266,52 @@
 
                 //Xuli lap lai mot song
                 repeatBtn.onclick=function(e) {
-                    app.isRepeat=!app.isRepeat
+                    app.isRepeat=!app.isRepeat                   
                     repeatBtn.classList.toggle('active',app.isRepeat)
+                    app.setConfig('isRepeat',isRandom)
+                }
+
+                //Lắng nghe hành vi click vào playclick
+                playlist.onclick=function(e) {
+                    const songNode=e.target.closest('.song:not(.active)')
+                    if(songNode || e.target.closest('.option'))  {
+                        //Xử lý khi click vao song
+                        if(songNode) {
+                          app.currentIndex=Number(songNode.dataset.index)
+                          app.loadCurrentSong()
+                          audio.play()
+                          app.render()
+                        }
+                        //Xử lý khi click vào option song
+                        if(e.target.closest('.option')) {
+
+                        }
+                    }
                 }
 
 
             },
+            scrollToActiveSong: function() {
+                setTimeout(() => {
+                    $('.song.active').scrollIntoView({
+                        behavior:'smooth',
+                        block:'center'
+                    })
+                },300) 
+            },
+
             loadCurrentSong: function() {
                 
                 console.log(heading,cdThumb,audio)
                 heading.textContent=this.currentSong.name
                 cdThumb.style.backgroundImage=`url('${this.currentSong.image}')`
                 audio.src=this.currentSong.path
+
+            },
+            loadConfig:function() {
+                this.isRandom=this.config.isRandom
+                this.isRepeat=this.config.isRepeat
+                
 
             },
             prevSong: function() {
@@ -291,6 +339,10 @@
             
 
             start: function () {
+
+                //Gán cấu hình từ config vao ung dung
+                this.loadConfig()
+
                 //Dinh nghia cacs thuoc tinh
                 this.defineProperties()
 
@@ -305,6 +357,9 @@
                 //Render playlist
                 this.render()
 
+
+                randomBtn.classList.toggle('active',app.isRandom)
+                randomBtn.classList.toggle('active',app.isRepeat)
                
             }
         }
